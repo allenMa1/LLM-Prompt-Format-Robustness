@@ -1,0 +1,40 @@
+{
+  "variants": [
+    {"id": "direct_answer_only", "wording": "direct", "output_format": "answer_only"},
+    {"id": "direct_sentence", "wording": "direct", "output_format": "sentence"},
+    {"id": "direct_tagged", "wording": "direct", "output_format": "tagged"},
+    {"id": "direct_json", "wording": "direct", "output_format": "json"},
+    {"id": "formal_answer_only", "wording": "formal", "output_format": "answer_only"},
+    {"id": "formal_sentence", "wording": "formal", "output_format": "sentence"},
+    {"id": "formal_tagged", "wording": "formal", "output_format": "tagged"},
+    {"id": "formal_json", "wording": "formal", "output_format": "json"}
+  ],
+  "wordings": {
+    "direct": {
+      "trec6": "Classify the question into exactly one of these labels: ABBR, ENTY, DESC, HUM, LOC, NUM.",
+      "gsm8k": "Solve the math problem."
+    },
+    "formal": {
+      "trec6": "Assign the coarse question type for the item below. The valid labels are ABBR, ENTY, DESC, HUM, LOC, and NUM.",
+      "gsm8k": "Determine the final numerical answer for the grade-school math problem below."
+    }
+  },
+  "formats": {
+    "answer_only": {
+      "trec6": "Return only the label, with no extra text.",
+      "gsm8k": "Return only the final number, with no extra text."
+    },
+    "sentence": {
+      "trec6": "Return exactly one sentence in this form: The answer is <label>.",
+      "gsm8k": "Return exactly one sentence in this form: The answer is <number>."
+    },
+    "tagged": {
+      "trec6": "Return the answer inside XML tags in this form: <answer><label></answer>.",
+      "gsm8k": "Return the answer inside XML tags in this form: <answer><number></answer>."
+    },
+    "json": {
+      "trec6": "Return valid JSON in this form: {\"answer\": \"<label>\"}.",
+      "gsm8k": "Return valid JSON in this form: {\"answer\": \"<number>\"}."
+    }
+  }
+}

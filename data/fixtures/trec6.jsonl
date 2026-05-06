@@ -1,0 +1,3 @@
+{"id":"trec6_fixture_0001","task":"trec6","input":"What city is the Eiffel Tower in?","gold":"LOC","metadata":{}}
+{"id":"trec6_fixture_0002","task":"trec6","input":"Who wrote Hamlet?","gold":"HUM","metadata":{}}
+{"id":"trec6_fixture_0003","task":"trec6","input":"How many planets are in the solar system?","gold":"NUM","metadata":{}}

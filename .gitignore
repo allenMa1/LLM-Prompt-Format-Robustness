@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+runs/raw_outputs/*.jsonl
+runs/scores/*.jsonl
+runs/plots/**
+!runs/raw_outputs/.gitkeep
+!runs/scores/.gitkeep
+!runs/plots/.gitkeep
+
+.env
+*.log
+
+*.pdf

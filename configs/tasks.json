@@ -1,0 +1,27 @@
+{
+  "tasks": [
+    {
+      "id": "trec6",
+      "name": "TREC-6 Question Classification",
+      "dataset_name": "CogComp/trec",
+      "dataset_subset": null,
+      "split": "test",
+      "sample_size": 100,
+      "seed": 17,
+      "input_field": "text",
+      "label_field": "coarse_label",
+      "labels": ["ABBR", "ENTY", "DESC", "HUM", "LOC", "NUM"]
+    },
+    {
+      "id": "gsm8k",
+      "name": "GSM8K Grade-School Math",
+      "dataset_name": "openai/gsm8k",
+      "dataset_subset": "main",
+      "split": "test",
+      "sample_size": 100,
+      "seed": 17,
+      "input_field": "question",
+      "answer_field": "answer"
+    }
+  ]
+}

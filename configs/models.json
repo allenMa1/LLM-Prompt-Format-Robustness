@@ -1,0 +1,25 @@
+{
+  "models": [
+    {
+      "id": "gpt-5-nano",
+      "provider": "openai",
+      "enabled": true,
+      "max_output_tokens": 256,
+      "temperature": 0
+    },
+    {
+      "id": "gpt-5-mini",
+      "provider": "openai",
+      "enabled": true,
+      "max_output_tokens": 256,
+      "temperature": 0
+    },
+    {
+      "id": "gpt-5.2",
+      "provider": "openai",
+      "enabled": false,
+      "max_output_tokens": 256,
+      "temperature": 0
+    }
+  ]
+}
