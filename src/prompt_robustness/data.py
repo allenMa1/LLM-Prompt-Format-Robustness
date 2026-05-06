@@ -47,9 +47,28 @@ def load_fixture_examples(task_id: str, limit: Optional[int] = None) -> List[Dic
     return rows[:limit] if limit is not None else rows
 
 
-def load_examples(task_id: str, limit: Optional[int] = None, use_fixtures: bool = False) -> List[Dict[str, Any]]:
+def load_frozen_examples(task_id: str, frozen_dir: Path, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    path = frozen_dir / f"{task_id}.jsonl"
+    if not path.exists():
+        raise FileNotFoundError(f"No frozen examples for task {task_id}: {path}")
+    rows = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                rows.append(json.loads(line))
+    return rows[:limit] if limit is not None else rows
+
+
+def load_examples(
+    task_id: str,
+    limit: Optional[int] = None,
+    use_fixtures: bool = False,
+    frozen_dir: Optional[Path] = None
+) -> List[Dict[str, Any]]:
     if use_fixtures:
         return load_fixture_examples(task_id, limit=limit)
+    if frozen_dir is not None:
+        return load_frozen_examples(task_id, frozen_dir=frozen_dir, limit=limit)
 
     task = get_task_config(task_id)
     load_dataset = _require_datasets()
@@ -64,18 +83,22 @@ def load_examples(task_id: str, limit: Optional[int] = None, use_fixtures: bool 
     rows = _sample_rows(rows, sample_size, int(task.get("seed", 17)))
 
     if task_id == "trec6":
-        label_names = dataset.features[task["label_field"]].names
         examples = []
         for idx, row in enumerate(rows):
             label_value = row[task["label_field"]]
-            gold = label_names[int(label_value)]
+            gold = (
+                str(label_value)
+                if isinstance(label_value, str)
+                else dataset.features[task["label_field"]].names[int(label_value)]
+            )
+            gold_label_id = task["labels"].index(gold) if isinstance(label_value, str) else int(label_value)
             examples.append(
                 {
                     "id": f"trec6_{idx:04d}",
                     "task": task_id,
                     "input": row[task["input_field"]],
                     "gold": gold,
-                    "metadata": {"gold_label_id": int(label_value)}
+                    "metadata": {"gold_label_id": gold_label_id}
                 }
             )
         return examples

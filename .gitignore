@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 
@@ -10,6 +11,8 @@ runs/plots/**
 !runs/raw_outputs/.gitkeep
 !runs/scores/.gitkeep
 !runs/plots/.gitkeep
+
+data/frozen/
 
 .env
 *.log

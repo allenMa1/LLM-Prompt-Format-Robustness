@@ -55,6 +55,7 @@ def run_inference(
     limit: Optional[int],
     output_path: Path,
     dry_run: bool = False,
+    frozen_dir: Optional[Path] = None,
     sleep_seconds: float = 0.0
 ) -> None:
     models = _model_by_ids(model_ids)
@@ -62,7 +63,7 @@ def run_inference(
     records = []
 
     for task_id in task_ids:
-        examples = load_examples(task_id, limit=limit, use_fixtures=dry_run)
+        examples = load_examples(task_id, limit=limit, use_fixtures=dry_run, frozen_dir=frozen_dir)
         for example in examples:
             for variant in variants:
                 prompt = render_prompt(task_id, example, variant)
@@ -111,6 +112,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--output", type=Path, default=RUNS_DIR / "raw_outputs" / "outputs.jsonl")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--frozen-dir", type=Path, default=None)
     parser.add_argument("--sleep-seconds", type=float, default=0.0)
     args = parser.parse_args()
 
@@ -125,6 +127,7 @@ def main() -> None:
         limit=args.limit,
         output_path=args.output,
         dry_run=args.dry_run,
+        frozen_dir=args.frozen_dir,
         sleep_seconds=args.sleep_seconds
     )
 

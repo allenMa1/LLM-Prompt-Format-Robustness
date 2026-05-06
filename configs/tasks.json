@@ -3,7 +3,7 @@
     {
       "id": "trec6",
       "name": "TREC-6 Question Classification",
-      "dataset_name": "CogComp/trec",
+      "dataset_name": "lukasgarbas/trec",
       "dataset_subset": null,
       "split": "test",
       "sample_size": 100,

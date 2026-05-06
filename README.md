@@ -18,10 +18,18 @@ Core question:
 ## Setup
 
 ```powershell
-python -m venv .venv
+py -3.10 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
+
+If your venv was created by MSYS/MinGW Python and has `.venv\bin` instead of `.venv\Scripts`, activate it with:
+
+```powershell
+.\.venv\bin\Activate.ps1
+```
+
+However, prefer the `py -3.10 -m venv .venv` command on Windows. MSYS/MinGW Python may try to build packages such as `pandas` and `numpy` from source instead of using normal Windows wheels.
 
 Set your OpenAI API key before inference:
 
@@ -48,10 +56,29 @@ python -m prompt_robustness.analyze --input runs/scores/pilot_scored.jsonl --out
 
 After the pilot, inspect failures and freeze scoring rules.
 
+## Dataset Sources
+
+- `trec6`: `lukasgarbas/trec`, a Parquet-converted mirror of the classic TREC question classification dataset. The original `CogComp/trec` Hugging Face repo uses a dataset script, which recent `datasets` versions no longer load by default.
+- `gsm8k`: `openai/gsm8k`, subset `main`.
+
+## Freeze Examples
+
+Before real API runs, freeze the sampled examples so pilot/main runs use the exact same subset:
+
+```powershell
+python -m prompt_robustness.freeze_examples --limit 100 --out-dir data/frozen/main
+```
+
+Then run inference from the frozen files:
+
+```powershell
+python -m prompt_robustness.inference --frozen-dir data/frozen/main --output runs/raw_outputs/main.jsonl
+```
+
 ## Main Run
 
 ```powershell
-python -m prompt_robustness.inference --output runs/raw_outputs/main.jsonl
+python -m prompt_robustness.inference --frozen-dir data/frozen/main --output runs/raw_outputs/main.jsonl
 python -m prompt_robustness.scoring --input runs/raw_outputs/main.jsonl --output runs/scores/main_scored.jsonl
 python -m prompt_robustness.analyze --input runs/scores/main_scored.jsonl --out-dir runs/plots/main
 ```
