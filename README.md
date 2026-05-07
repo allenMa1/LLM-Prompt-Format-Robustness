@@ -37,6 +37,14 @@ Set your OpenAI API key before inference:
 $env:OPENAI_API_KEY="..."
 ```
 
+Or create a local `.env` file in the repo root:
+
+```text
+OPENAI_API_KEY=...
+```
+
+The inference script loads `.env` automatically. `.env` is ignored by Git.
+
 ## Dry Run
 
 This validates prompt rendering, output file structure, and scoring without API calls or dataset downloads. It uses tiny local fixtures in `data/fixtures`.

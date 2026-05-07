@@ -6,13 +6,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
-from .config import RUNS_DIR, enabled_models, load_json_config
+from .config import PROJECT_ROOT, RUNS_DIR, enabled_models, load_json_config
 from .data import configured_task_ids, load_examples
 from .io import write_jsonl
 from .prompts import get_prompt_variants, render_prompt
 
 
-def _call_openai(model: Dict[str, Any], prompt: str) -> str:
+def _dump_openai_obj(value: Any) -> Any:
+    if value is None:
+        return None
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    return str(value)
+
+
+def _call_openai(model: Dict[str, Any], prompt: str) -> Dict[str, Any]:
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        load_dotenv = None
+    if load_dotenv is not None:
+        load_dotenv(PROJECT_ROOT / ".env")
+
     try:
         from openai import OpenAI
     except ImportError as exc:
@@ -29,11 +44,21 @@ def _call_openai(model: Dict[str, Any], prompt: str) -> str:
     }
     if model.get("temperature") is not None:
         kwargs["temperature"] = model["temperature"]
+    if model.get("reasoning_effort") is not None:
+        kwargs["reasoning"] = {"effort": model["reasoning_effort"]}
 
     response = client.responses.create(**kwargs)
+    output_text = response.output_text if getattr(response, "output_text", None) is not None else ""
+    metadata = {
+        "response_status": getattr(response, "status", None),
+        "incomplete_details": _dump_openai_obj(getattr(response, "incomplete_details", None)),
+        "usage": _dump_openai_obj(getattr(response, "usage", None))
+    }
     if hasattr(response, "output_text") and response.output_text is not None:
-        return response.output_text
-    return str(response)
+        metadata["raw_output"] = output_text
+    else:
+        metadata["raw_output"] = str(response)
+    return metadata
 
 
 def _model_by_ids(model_ids: Optional[Iterable[str]]) -> list[Dict[str, Any]]:
@@ -70,9 +95,14 @@ def run_inference(
                 for model in models:
                     started = datetime.now(timezone.utc).isoformat()
                     if dry_run:
-                        output = ""
+                        response_data = {
+                            "raw_output": "",
+                            "response_status": "dry_run",
+                            "incomplete_details": None,
+                            "usage": None
+                        }
                     else:
-                        output = _call_openai(model, prompt)
+                        response_data = _call_openai(model, prompt)
                         if sleep_seconds > 0:
                             time.sleep(sleep_seconds)
 
@@ -87,10 +117,14 @@ def run_inference(
                             "input": example["input"],
                             "gold": example["gold"],
                             "raw_prompt": prompt,
-                            "raw_output": output,
+                            "raw_output": response_data["raw_output"],
+                            "response_status": response_data["response_status"],
+                            "incomplete_details": response_data["incomplete_details"],
+                            "usage": response_data["usage"],
                             "model_params": {
                                 "temperature": model.get("temperature"),
-                                "max_output_tokens": model.get("max_output_tokens")
+                                "max_output_tokens": model.get("max_output_tokens"),
+                                "reasoning_effort": model.get("reasoning_effort")
                             },
                             "created_at": started
                         }
