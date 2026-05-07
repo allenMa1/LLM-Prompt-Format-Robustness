@@ -120,3 +120,102 @@ raw model output -> equivalence-aware scorer
 ```
 
 This keeps the evaluation-method ablation clean. Existing benchmark loaders are fine; outsourcing the scoring logic is not.
+
+## Post-Inference Analysis Tools
+
+After any inference run, score the raw outputs:
+
+```powershell
+python -m prompt_robustness.scoring --input runs/raw_outputs/<run>.jsonl --output runs/scores/<run>_scored.jsonl
+```
+
+Then generate aggregate tables and plots:
+
+```powershell
+python -m prompt_robustness.analyze --input runs/scores/<run>_scored.jsonl --out-dir runs/plots/<run>
+```
+
+The analysis step writes:
+
+- `accuracy_by_prompt.csv`: accuracy grouped by task, model, scorer, and prompt.
+- `sensitivity_by_task_model_scorer.csv`: average accuracy, min/max prompt accuracy, prompt std dev, and prompt sensitivity range.
+- `artifact_gap.csv`: strict prompt sensitivity minus equivalence-aware prompt sensitivity.
+- `run_health_by_prompt.csv`: completion rate, empty-output rate, and average token usage by task/model/prompt.
+- `scorer_delta_by_prompt.csv`: strict vs equivalence-aware accuracy and recovery rate by prompt.
+- `accuracy_by_prompt_axes.csv`: accuracy grouped by wording and output-format axes.
+- `per_example_prompt_sensitivity.csv`: per-example correctness spread across prompts.
+- `accuracy_<task>_<model>.png`: bar charts of prompt accuracy under strict and equivalence-aware scoring.
+
+To summarize token usage, completion status, and timing from raw inference output:
+
+```powershell
+python -m prompt_robustness.summarize_run --input runs/raw_outputs/<run>.jsonl
+```
+
+To retry failed or empty records from a previous run using the current model config:
+
+```powershell
+python -m prompt_robustness.retry_failed --input runs/raw_outputs/<old_run>.jsonl --limit 8 --models gpt-5-nano --output runs/raw_outputs/<retry_run>.jsonl --log-file runs/logs/<retry_run>.log
+```
+
+Then score and summarize the retry output like any other run.
+
+## Private Progress Notes
+
+Completed so far:
+
+- Repo scaffolded with config-driven tasks, prompts, models, inference, scoring, and analysis.
+- Python venv set up with standard Windows Python via `py -3.10`.
+- Local package installed in editable mode with `pip install -e .`.
+- `.env` loading added for `OPENAI_API_KEY`; `.env` is ignored by Git.
+- Dry-run fixture pipeline verified: 64 rows for `2 tasks x 2 examples x 8 prompts x 2 models`.
+- TREC dataset source changed from deprecated `CogComp/trec` to `lukasgarbas/trec`.
+- Real dataset loading verified for TREC-6 and GSM8K.
+- Frozen main examples created under `data/frozen/main`: 100 TREC examples and 100 GSM8K examples.
+- Frozen examples sanity-checked for row counts, uniqueness, valid labels, and parsed GSM8K answers.
+- Prompt rendering checked on frozen examples across all 8 variants.
+- Tagged/XML prompt wording fixed to use `<answer>LABEL</answer>` and `<answer>NUMBER</answer>`.
+- OpenAI API smoke tests run successfully.
+- `temperature` removed from GPT-5-family requests because `gpt-5-nano` rejected that parameter.
+- Response metadata logging added: `response_status`, `incomplete_details`, and `usage`.
+- Model config changed to provider-default reasoning with `max_output_tokens=2048`.
+- Pilot run completed with 640 records under the older `1024` cap.
+- Pilot analysis found 31 incomplete/empty outputs, all from `max_output_tokens` cap hits.
+- Targeted retry of 8 failed nano records under `2048` completed with no empty/incomplete outputs.
+- Richer analysis outputs added for run health, scorer deltas, prompt axes, and per-example sensitivity.
+- Inference and retry logging added with optional `--log-file`.
+
+Current conclusion before main:
+
+- Matrix generation is correct.
+- Scoring recomputation matches saved scorer fields.
+- JSON and tagged outputs are parseable when responses complete.
+- The main known pilot issue was the old `1024` cap, now fixed by `2048`.
+- The project is ready for the main run.
+
+## Operational Notes
+
+Generated experiment artifacts are intentionally ignored by Git:
+
+- `runs/raw_outputs/*.jsonl`
+- `runs/scores/*.jsonl`
+- `runs/plots/**`
+- `runs/logs/*.log`
+- `data/frozen/`
+- `.env`
+
+Main run command with logs:
+
+```powershell
+python -m prompt_robustness.inference --frozen-dir data/frozen/main --output runs/raw_outputs/main.jsonl --log-file runs/logs/main.log
+```
+
+Then:
+
+```powershell
+python -m prompt_robustness.scoring --input runs/raw_outputs/main.jsonl --output runs/scores/main_scored.jsonl
+python -m prompt_robustness.analyze --input runs/scores/main_scored.jsonl --out-dir runs/plots/main
+python -m prompt_robustness.summarize_run --input runs/raw_outputs/main.jsonl
+```
+
+Keep the laptop awake during inference. If a run is interrupted, inspect the partial JSONL before deciding whether to rerun or recover.
