@@ -160,6 +160,15 @@ python -m prompt_robustness.retry_failed --input runs/raw_outputs/<old_run>.json
 
 Then score and summarize the retry output like any other run.
 
+To merge retry outputs back into a cleaned raw-output file:
+
+```powershell
+python -m prompt_robustness.merge_retries --base runs/raw_outputs/main.jsonl --retry runs/raw_outputs/main_retry_4096.jsonl --output runs/raw_outputs/main_clean.jsonl
+python -m prompt_robustness.scoring --input runs/raw_outputs/main_clean.jsonl --output runs/scores/main_clean_scored.jsonl
+python -m prompt_robustness.analyze --input runs/scores/main_clean_scored.jsonl --out-dir runs/plots/main_clean
+python -m prompt_robustness.summarize_run --input runs/raw_outputs/main_clean.jsonl
+```
+
 ## Private Progress Notes
 
 Completed so far:
@@ -192,6 +201,12 @@ Current conclusion before main:
 - JSON and tagged outputs are parseable when responses complete.
 - The main known pilot issue was the old `1024` cap, now fixed by `2048`.
 - The project is ready for the main run.
+
+Post-main cleanup note:
+
+- The first main run completed 3,200 records but had 14 `gpt-5-nano` / GSM8K records hit `max_output_tokens` under the `2048` cap.
+- `configs/models.json` has been raised to `4096` so those failed records can be retried without rerunning the full experiment.
+- Use `retry_failed` and `merge_retries` to produce `main_clean.jsonl`.
 
 ## Operational Notes
 
