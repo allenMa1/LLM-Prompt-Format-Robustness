@@ -83,6 +83,25 @@ Then run inference from the frozen files:
 python -m prompt_robustness.inference --frozen-dir data/frozen/main --output runs/raw_outputs/main.jsonl
 ```
 
+Add `--log-file runs/logs/main.log` to save inference progress logs:
+
+```powershell
+python -m prompt_robustness.inference --frozen-dir data/frozen/main --output runs/raw_outputs/main.jsonl --log-file runs/logs/main.log
+```
+
+To retry a small subset of failed or empty records from a prior run with the current model config:
+
+```powershell
+python -m prompt_robustness.retry_failed --input runs/raw_outputs/pilot.jsonl --limit 8 --models gpt-5-nano --output runs/raw_outputs/pilot_retry_2048.jsonl
+python -m prompt_robustness.scoring --input runs/raw_outputs/pilot_retry_2048.jsonl --output runs/scores/pilot_retry_2048_scored.jsonl
+```
+
+To summarize token usage, completion status, and rough timing:
+
+```powershell
+python -m prompt_robustness.summarize_run --input runs/raw_outputs/pilot.jsonl
+```
+
 ## Main Run
 
 ```powershell

@@ -20,6 +20,21 @@ def _dump_openai_obj(value: Any) -> Any:
     return str(value)
 
 
+def call_model(model: Dict[str, Any], prompt: str, dry_run: bool = False) -> Dict[str, Any]:
+    if dry_run:
+        return {
+            "raw_output": "",
+            "response_status": "dry_run",
+            "incomplete_details": None,
+            "usage": None
+        }
+
+    if model["provider"] == "openai":
+        return _call_openai(model, prompt)
+
+    raise KeyError(f"Unsupported provider: {model['provider']}")
+
+
 def _call_openai(model: Dict[str, Any], prompt: str) -> Dict[str, Any]:
     try:
         from dotenv import load_dotenv
@@ -81,61 +96,95 @@ def run_inference(
     output_path: Path,
     dry_run: bool = False,
     frozen_dir: Optional[Path] = None,
-    sleep_seconds: float = 0.0
+    sleep_seconds: float = 0.0,
+    log_file: Optional[Path] = None
 ) -> None:
     models = _model_by_ids(model_ids)
     variants = get_prompt_variants(prompt_ids)
     records = []
+    completed = 0
+    started_at = time.time()
+    log_handle = None
 
-    for task_id in task_ids:
-        examples = load_examples(task_id, limit=limit, use_fixtures=dry_run, frozen_dir=frozen_dir)
-        for example in examples:
-            for variant in variants:
-                prompt = render_prompt(task_id, example, variant)
-                for model in models:
-                    started = datetime.now(timezone.utc).isoformat()
-                    if dry_run:
-                        response_data = {
-                            "raw_output": "",
-                            "response_status": "dry_run",
-                            "incomplete_details": None,
-                            "usage": None
-                        }
-                    else:
-                        response_data = _call_openai(model, prompt)
-                        if sleep_seconds > 0:
+    def log(message: str) -> None:
+        print(message, flush=True)
+        if log_handle is not None:
+            log_handle.write(message + "\n")
+            log_handle.flush()
+
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        if log_file.exists():
+            raise FileExistsError(f"Log file already exists. Pick a new path or delete it: {log_file}")
+        log_handle = log_file.open("w", encoding="utf-8")
+
+    try:
+        for task_id in task_ids:
+            examples = load_examples(task_id, limit=limit, use_fixtures=dry_run, frozen_dir=frozen_dir)
+            total_for_task = len(examples) * len(variants) * len(models)
+            log(
+                f"[task-start] task={task_id} examples={len(examples)} "
+                f"prompts={len(variants)} models={len(models)} calls={total_for_task}"
+            )
+            for example in examples:
+                for variant in variants:
+                    prompt = render_prompt(task_id, example, variant)
+                    for model in models:
+                        completed += 1
+                        log(
+                            f"[call-start] n={completed} task={task_id} example={example['id']} "
+                            f"prompt={variant['id']} model={model['id']}"
+                        )
+                        started = datetime.now(timezone.utc).isoformat()
+                        call_started_at = time.time()
+                        response_data = call_model(model, prompt, dry_run=dry_run)
+                        if not dry_run and sleep_seconds > 0:
                             time.sleep(sleep_seconds)
+                        call_elapsed = time.time() - call_started_at
+                        elapsed = time.time() - started_at
+                        output_preview = response_data["raw_output"].replace("\n", "\\n")[:80]
+                        log(
+                            f"[call-done] n={completed} status={response_data['response_status']} "
+                            f"call_s={call_elapsed:.1f} elapsed_s={elapsed:.1f} output={output_preview!r}"
+                        )
 
-                    records.append(
-                        {
-                            "example_id": example["id"],
-                            "task": task_id,
-                            "model": model["id"],
-                            "prompt_id": variant["id"],
-                            "wording": variant["wording"],
-                            "output_format": variant["output_format"],
-                            "input": example["input"],
-                            "gold": example["gold"],
-                            "raw_prompt": prompt,
-                            "raw_output": response_data["raw_output"],
-                            "response_status": response_data["response_status"],
-                            "incomplete_details": response_data["incomplete_details"],
-                            "usage": response_data["usage"],
-                            "model_params": {
-                                "temperature": model.get("temperature"),
-                                "max_output_tokens": model.get("max_output_tokens"),
-                                "reasoning_effort": model.get("reasoning_effort")
-                            },
-                            "created_at": started
-                        }
-                    )
+                        records.append(
+                            {
+                                "example_id": example["id"],
+                                "task": task_id,
+                                "model": model["id"],
+                                "prompt_id": variant["id"],
+                                "wording": variant["wording"],
+                                "output_format": variant["output_format"],
+                                "input": example["input"],
+                                "gold": example["gold"],
+                                "raw_prompt": prompt,
+                                "raw_output": response_data["raw_output"],
+                                "response_status": response_data["response_status"],
+                                "incomplete_details": response_data["incomplete_details"],
+                                "usage": response_data["usage"],
+                                "model_params": {
+                                    "temperature": model.get("temperature"),
+                                    "max_output_tokens": model.get("max_output_tokens"),
+                                    "reasoning_effort": model.get("reasoning_effort")
+                                },
+                                "created_at": started,
+                                "call_elapsed_s": call_elapsed
+                            }
+                        )
 
-                    if len(records) >= 50:
-                        write_jsonl(output_path, records, append=True)
-                        records.clear()
+                        if len(records) >= 50:
+                            write_jsonl(output_path, records, append=True)
+                            log(f"[flush] wrote_batch=50 output={output_path}")
+                            records.clear()
 
-    if records:
-        write_jsonl(output_path, records, append=True)
+        if records:
+            write_jsonl(output_path, records, append=True)
+            log(f"[flush] wrote_batch={len(records)} output={output_path}")
+        log(f"[done] calls={completed} elapsed_s={time.time() - started_at:.1f} output={output_path}")
+    finally:
+        if log_handle is not None:
+            log_handle.close()
 
 
 def main() -> None:
@@ -148,6 +197,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--frozen-dir", type=Path, default=None)
     parser.add_argument("--sleep-seconds", type=float, default=0.0)
+    parser.add_argument("--log-file", type=Path, default=None)
     args = parser.parse_args()
 
     if args.output.exists():
@@ -162,7 +212,8 @@ def main() -> None:
         output_path=args.output,
         dry_run=args.dry_run,
         frozen_dir=args.frozen_dir,
-        sleep_seconds=args.sleep_seconds
+        sleep_seconds=args.sleep_seconds,
+        log_file=args.log_file
     )
 
 

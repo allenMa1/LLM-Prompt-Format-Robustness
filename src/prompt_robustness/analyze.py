@@ -20,7 +20,7 @@ def analyze(scored_path: Path, out_dir: Path) -> None:
     df = pd.read_json(scored_path, lines=True)
 
     long_df = df.melt(
-        id_vars=["task", "model", "prompt_id", "wording", "output_format"],
+        id_vars=["example_id", "task", "model", "prompt_id", "wording", "output_format"],
         value_vars=["strict_correct", "equiv_correct"],
         var_name="scorer",
         value_name="correct"
@@ -28,6 +28,7 @@ def analyze(scored_path: Path, out_dir: Path) -> None:
     long_df["scorer"] = long_df["scorer"].map(
         {"strict_correct": "strict", "equiv_correct": "equivalence_aware"}
     )
+    long_df["correct"] = long_df["correct"].astype(float)
 
     by_prompt = (
         long_df.groupby(["task", "model", "scorer", "prompt_id"], as_index=False)["correct"]
@@ -58,6 +59,68 @@ def analyze(scored_path: Path, out_dir: Path) -> None:
     if {"strict", "equivalence_aware"}.issubset(pivot.columns):
         pivot["artifact_gap"] = pivot["strict"] - pivot["equivalence_aware"]
     pivot.to_csv(out_dir / "artifact_gap.csv", index=False)
+
+    if {"response_status", "usage"}.issubset(df.columns):
+        status_cols = ["task", "model", "prompt_id", "output_format"]
+        status_summary = (
+            df.assign(
+                completed=df["response_status"].eq("completed"),
+                empty_output=df["raw_output"].fillna("").astype(str).str.strip().eq(""),
+                input_tokens=df["usage"].apply(lambda u: (u or {}).get("input_tokens", 0)),
+                output_tokens=df["usage"].apply(lambda u: (u or {}).get("output_tokens", 0)),
+                total_tokens=df["usage"].apply(lambda u: (u or {}).get("total_tokens", 0)),
+                reasoning_tokens=df["usage"].apply(
+                    lambda u: ((u or {}).get("output_tokens_details") or {}).get("reasoning_tokens", 0)
+                )
+            )
+            .groupby(status_cols, as_index=False)
+            .agg(
+                n=("example_id", "count"),
+                completion_rate=("completed", "mean"),
+                empty_output_rate=("empty_output", "mean"),
+                avg_input_tokens=("input_tokens", "mean"),
+                avg_output_tokens=("output_tokens", "mean"),
+                avg_reasoning_tokens=("reasoning_tokens", "mean"),
+                avg_total_tokens=("total_tokens", "mean")
+            )
+        )
+        status_summary.to_csv(out_dir / "run_health_by_prompt.csv", index=False)
+
+    scorer_delta = df.assign(
+        strict_only_wrong=df["strict_correct"].eq(False) & df["equiv_correct"].eq(True),
+        both_wrong=df["strict_correct"].eq(False) & df["equiv_correct"].eq(False),
+        both_right=df["strict_correct"].eq(True) & df["equiv_correct"].eq(True)
+    )
+    delta_summary = (
+        scorer_delta.groupby(["task", "model", "prompt_id", "output_format"], as_index=False)
+        .agg(
+            n=("example_id", "count"),
+            strict_accuracy=("strict_correct", "mean"),
+            equivalence_aware_accuracy=("equiv_correct", "mean"),
+            scorer_recovered_rate=("strict_only_wrong", "mean"),
+            both_wrong_rate=("both_wrong", "mean"),
+            both_right_rate=("both_right", "mean")
+        )
+    )
+    delta_summary["accuracy_delta_equiv_minus_strict"] = (
+        delta_summary["equivalence_aware_accuracy"] - delta_summary["strict_accuracy"]
+    )
+    delta_summary.to_csv(out_dir / "scorer_delta_by_prompt.csv", index=False)
+
+    axis_summary = (
+        long_df.groupby(["task", "model", "scorer", "wording", "output_format"], as_index=False)["correct"]
+        .mean()
+        .rename(columns={"correct": "accuracy"})
+    )
+    axis_summary.to_csv(out_dir / "accuracy_by_prompt_axes.csv", index=False)
+
+    per_example = (
+        long_df.groupby(["task", "model", "scorer", "example_id"], as_index=False)["correct"]
+        .agg(["mean", "min", "max"])
+        .reset_index()
+    )
+    per_example["example_prompt_sensitivity"] = per_example["max"] - per_example["min"]
+    per_example.to_csv(out_dir / "per_example_prompt_sensitivity.csv", index=False)
 
     for (task, model), group in by_prompt.groupby(["task", "model"]):
         fig, ax = plt.subplots(figsize=(10, 4))
