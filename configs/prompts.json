@@ -29,8 +29,8 @@
       "gsm8k": "Return exactly one sentence in this form: The answer is <number>."
     },
     "tagged": {
-      "trec6": "Return the answer inside XML tags in this form: <answer><label></answer>.",
-      "gsm8k": "Return the answer inside XML tags in this form: <answer><number></answer>."
+      "trec6": "Return the answer inside XML tags in this form: <answer>LABEL</answer>.",
+      "gsm8k": "Return the answer inside XML tags in this form: <answer>NUMBER</answer>."
     },
     "json": {
       "trec6": "Return valid JSON in this form: {\"answer\": \"<label>\"}.",
