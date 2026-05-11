@@ -21,3 +21,5 @@ data/frozen/
 
 *.pdf
 !reports/final_report/final_report.pdf
+
+PRIVATE_README.md
