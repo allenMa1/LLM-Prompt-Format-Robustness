@@ -20,3 +20,4 @@ data/frozen/
 *.log
 
 *.pdf
+!reports/final_report/final_report.pdf
