@@ -169,6 +169,38 @@ python -m prompt_robustness.analyze --input runs/scores/main_clean_scored.jsonl 
 python -m prompt_robustness.summarize_run --input runs/raw_outputs/main_clean.jsonl
 ```
 
+## Optional LLM-Judge Audit
+
+The deterministic equivalence-aware scorer is the main scoring ablation. As an optional secondary audit, run an LLM judge over records that failed strict scoring:
+
+```powershell
+python -m prompt_robustness.judge_equivalence --input runs/scores/main_clean_scored_v2.jsonl
+```
+
+This judges 326 records in the current clean main run:
+
+- `strict_correct = false, equiv_correct = true`: checks whether the rule-based equivalence scorer was too lenient.
+- `strict_correct = false, equiv_correct = false`: checks whether the rule-based equivalence scorer missed semantically correct answers.
+
+The judge receives task-specific context:
+
+- TREC-6: question, gold label, model output, and label definitions for `ABBR`, `ENTY`, `DESC`, `HUM`, `LOC`, and `NUM`.
+- GSM8K: problem, gold final answer, model output, and instructions to judge final numeric equivalence.
+
+Then summarize judge/rule agreement:
+
+```powershell
+python -m prompt_robustness.summarize_judge_audit --input runs/scores/main_clean_judge_audit.jsonl --out-dir runs/plots/main_clean_judge_audit
+```
+
+This writes:
+
+- `judge_audit_summary_by_task_model.csv`
+- `judge_audit_summary_by_prompt.csv`
+- `judge_rule_disagreements.csv`
+
+If this audit is included in the report, frame it as a secondary validation/audit unless judging all 3,200 records.
+
 ## Private Progress Notes
 
 Completed so far:

@@ -1,0 +1,1 @@
+task,model,example_id,prompt_id,gold,raw_output,strict_correct,equiv_correct,judge_equiv_correct,judge_raw_output

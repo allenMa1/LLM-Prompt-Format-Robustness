@@ -1,0 +1,5 @@
+task,model,n,rule_equiv_true,judge_equiv_true,judge_parse_failures,rule_judge_agreement,judge_recovers_rule_misses,judge_rejects_rule_recoveries
+gsm8k,gpt-5-mini,71,41,41,0,1.0,0,0
+gsm8k,gpt-5-nano,57,17,17,0,1.0,0,0
+trec6,gpt-5-mini,96,0,0,0,1.0,0,0
+trec6,gpt-5-nano,102,0,0,0,1.0,0,0
