@@ -346,8 +346,13 @@ The prompt sensitivity on GSM8K is modest but nonzero. For \texttt{gpt-5-nano}, 
 \paragraph{TREC-6.}
 TREC-6 errors are primarily label confusions. For example, questions whose answer type is an entity can be confused with descriptions, and location-seeking questions can be confused with entity labels when the target answer is a named object such as a mountain range. Because the output space is a small label set, the equivalence-aware scorer has little to recover beyond minor label aliases. This explains why strict and equivalence-aware scoring produce identical TREC-6 results.
 
-\paragraph{Token-cap cleanup.}
-During the first main run, 14 \texttt{gpt-5-nano}/GSM8K responses hit the maximum output-token cap and returned empty outputs. These records were retried with a larger output-token cap and merged into the clean final run. The final reported results use only the cleaned run, which has 3,200 completed outputs and no empty responses.
+\section{Discussion}
+
+The main empirical result is that semantically equivalent prompts are not necessarily equivalent evaluation conditions for an LLM. Even when the task input, model, examples, and scorer are fixed, changing the surrounding instruction or output-format constraint can shift measured accuracy. This is consistent with prior work on prompt sensitivity: LLMs condition on surface form, so prompt wrappers can affect the distribution of completions even when the intended task is unchanged.
+
+The prompt-variant trends suggest that output constraints are not neutral. In this experiment, \texttt{formal\_tagged} is the strongest prompt variant on average, while \texttt{direct\_sentence} is the weakest. A plausible explanation is that the tagged format gives the model a clear answer slot without requiring JSON syntax or a natural-language sentence wrapper. However, this should be treated as a descriptive result rather than a general rule: the experiment does not identify a causal mechanism, and the best prompt format may change with task, model, or prompt family.
+
+The scoring ablation also clarifies what kind of sensitivity is being measured. On GSM8K, equivalence-aware scoring recovers semantically correct numeric answers that strict scoring rejects, so some strict-scoring sensitivity is an artifact of answer formatting. On TREC-6, strict and equivalence-aware scoring are identical, which means the observed variation is driven by label predictions rather than surface-form scoring failures. This distinction is important because it separates evaluation brittleness from actual task errors.
 
 \section{Limitations}
 
@@ -355,7 +360,7 @@ This project is intentionally scoped. It uses only two tasks, two OpenAI models,
 
 The equivalence-aware scorer is deterministic and task-specific. This is a strength for reproducibility, but it limits generality. It is appropriate for TREC-6 labels and GSM8K numeric answers, but would not directly transfer to open-ended generation. The LLM-judge audit helps validate the scorer in this setting, but it is not a substitute for human evaluation.
 
-The experiment also uses provider-default reasoning and decoding behavior. This reflects normal API use, but it means hidden reasoning-token behavior is not fully controlled. Finally, because the evaluated models are from a single provider, the results should not be interpreted as a broad cross-provider robustness claim.
+The experiment also uses provider-default reasoning and decoding behavior. This reflects normal API use, but it means hidden reasoning-token behavior is not fully controlled. Because each prompt accuracy is estimated from 100 examples and each prompt/model/example combination is run once, small differences of a few percentage points may reflect finite-sample noise or run-level variability. The results should therefore be interpreted as observed prompt-associated variation rather than definitive statistical separation between individual prompt templates. Finally, because the evaluated models are from a single provider, the results should not be interpreted as a broad cross-provider robustness claim.
 
 \section{Conclusion}
 
