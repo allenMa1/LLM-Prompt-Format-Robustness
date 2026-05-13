@@ -90,6 +90,8 @@ The main experiment evaluates two OpenAI Responses API model IDs:
     \item \texttt{gpt-5-mini}
 \end{itemize}
 
+The model-selection goal was not to benchmark the strongest available systems. Instead, the goal was to use modern API models that are competent enough for the tasks while still leaving room to observe prompt-induced variation. If a model is too weak, prompt sensitivity can be hard to distinguish from general task failure. If a model is near-perfect, ceiling effects can hide sensitivity. The selected models operate in a useful middle-high regime: they achieve high average accuracy, but still show enough errors and prompt-level variance to study robustness.
+
 The experiment was run in May 2026. I did not set a temperature parameter, because the evaluated GPT-5-family models rejected that parameter in initial smoke tests. The main run used provider-default reasoning/decoding behavior. The initial main run used a 2,048 output-token cap; 14 incomplete \texttt{gpt-5-nano}/GSM8K records hit that cap and were retried with a 4,096 cap. The final clean output set contains 3,200 completed responses and no empty outputs.
 
 \subsection{Prompt Family}
@@ -212,6 +214,8 @@ Prompt sensitivity is present across both tasks and both models. The observed se
 
 The largest sensitivity appears for \texttt{gpt-5-nano} on TREC-6, where prompt accuracies range from 84\% to 92\%. This suggests that even for a simple structured classification task, the measured performance of a fixed model can change noticeably across prompt variants.
 
+The average accuracy columns in Table~\ref{tab:main-results} provide useful context for model quality. The two models have similar average accuracy in several settings; for example, under strict scoring on GSM8K, \texttt{gpt-5-nano} is slightly higher on average than \texttt{gpt-5-mini}, while under equivalence-aware scoring \texttt{gpt-5-mini} is higher. On TREC-6, \texttt{gpt-5-mini} is only slightly higher on average. The more consistent difference is not average accuracy, but robustness: \texttt{gpt-5-nano} has larger prompt-sensitivity ranges and larger prompt-accuracy standard deviations on both tasks. This suggests that model capability may affect robustness even when average accuracy is close, although this should be interpreted cautiously because only two models are evaluated.
+
 \subsection{Effect of Scoring Method}
 
 The scoring ablation has a clear but task-dependent effect. On GSM8K, equivalence-aware scoring increases average accuracy and slightly reduces prompt sensitivity. For \texttt{gpt-5-mini}, average GSM8K accuracy increases from 91.1\% under strict scoring to 96.2\% under equivalence-aware scoring. For \texttt{gpt-5-nano}, it increases from 92.9\% to 95.0\%. In both cases, the prompt sensitivity range shrinks by 1 percentage point.
@@ -237,6 +241,31 @@ TREC-6 & \texttt{gpt-5-nano} & 8.0 & 8.0 & 0.0 \\
 \subsection{Prompt-Level Accuracy}
 
 Figure~\ref{fig:gsm8k} and Figure~\ref{fig:trec} show prompt-level accuracies for each task/model pair. These figures make two patterns visible. First, GSM8K exhibits a consistent vertical separation between strict and equivalence-aware scoring, especially for \texttt{gpt-5-mini}. Second, TREC-6 prompt sensitivity is almost entirely model/output driven rather than scorer driven, since strict and equivalence-aware bars overlap.
+
+Table~\ref{tab:prompt-variant-avg} averages each prompt variant across the four task/model settings. This aggregation is not meant to identify a universally optimal prompt, since it collapses across different tasks and models. It is still useful as a descriptive check on whether some prompt styles are consistently weaker or stronger in this experiment.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+Prompt Variant & Strict Avg. & Equiv. Avg. & Delta \\
+\midrule
+\texttt{direct\_sentence} & 88.2 & 90.0 & +1.8 \\
+\texttt{direct\_answer\_only} & 89.0 & 91.0 & +2.0 \\
+\texttt{formal\_answer\_only} & 89.0 & 91.5 & +2.5 \\
+\texttt{formal\_json} & 89.0 & 90.8 & +1.8 \\
+\texttt{direct\_json} & 89.5 & 91.5 & +2.0 \\
+\texttt{direct\_tagged} & 90.2 & 92.0 & +1.8 \\
+\texttt{formal\_sentence} & 91.2 & 92.5 & +1.3 \\
+\texttt{formal\_tagged} & 92.2 & 93.8 & +1.6 \\
+\bottomrule
+\end{tabular}
+\caption{Average prompt-variant accuracy across both tasks and both models. Values are percentages. Delta is equivalence-aware average accuracy minus strict average accuracy.}
+\label{tab:prompt-variant-avg}
+\end{table}
+
+The aggregated trend is that \texttt{formal\_tagged} is the strongest prompt variant and \texttt{direct\_sentence} is the weakest under both scoring methods. This pattern should not be overinterpreted, but it suggests that the exact form of the output constraint matters. In this setup, the tagged format may provide a clear answer slot without requiring JSON syntax or a natural-language sentence wrapper. The formal wording is also slightly better on average than the direct wording, though the effect is small and may depend on the task/model pair.
 
 \begin{figure}[t]
 \centering
